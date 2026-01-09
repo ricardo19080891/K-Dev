@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <title>K-Genda PWA</title>
+  <link rel="manifest" href="manifest.json">
+</head>
+<body>
+  <h1>K-Genda rodando 🚀</h1>
+
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('service-worker.js');
+    }
+  </script>
+</body>
+</html>
