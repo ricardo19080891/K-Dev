@@ -2,17 +2,17 @@
 <html lang="pt-br">
 <head>
   <meta charset="UTF-8">
-  <title>K-Genda PWA</title>
+  <title>K-Genda</title>
+
   <link rel="manifest" href="manifest.json">
-<meta name="theme-color" content="#0ea5e9">
+  <meta name="theme-color" content="#0ea5e9">
+
+  <!-- REDIRECIONA PARA O APP -->
+  <script>
+    window.location.replace("app.html");
+  </script>
 </head>
 <body>
-  <h1>K-Genda rodando 🚀</h1>
-
-  <script>
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('service-worker.js');
-    }
-  </script>
+  <p>Carregando K-Genda 🚀</p>
 </body>
 </html>
