@@ -1,18 +1,225 @@
 <!DOCTYPE html>
-<html lang="pt-br">
+<html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <title>K-Genda</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>K-Genda • PWA</title>
 
+  <!-- PWA -->
   <link rel="manifest" href="manifest.json">
   <meta name="theme-color" content="#0ea5e9">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
 
-  <!-- REDIRECIONA PARA O APP -->
-  <script>
-    window.location.replace("app.html");
-  </script>
+  <style>
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #f5f7fb;
+      color: #0f172a;
+    }
+    header {
+      background: linear-gradient(135deg, #0ea5e9, #6366f1);
+      color: white;
+      padding: 16px;
+      text-align: center;
+      font-size: 20px;
+      font-weight: 600;
+    }
+    main {
+      padding: 16px;
+    }
+    .card {
+      background: white;
+      border-radius: 16px;
+      padding: 16px;
+      box-shadow: 0 10px 30px rgba(0,0,0,.08);
+      margin-bottom: 16px;
+    }
+    button {
+      border: none;
+      border-radius: 14px;
+      padding: 14px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    .primary {
+      background: #6366f1;
+      color: white;
+    }
+    .danger {
+      background: #ef4444;
+      color: white;
+    }
+    .ghost {
+      background: #e5e7eb;
+    }
+    .mic {
+      position: fixed;
+      right: 16px;
+      bottom: 16px;
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      background: linear-gradient(135deg,#6366f1,#8b5cf6);
+      color: white;
+      font-size: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 20px 40px rgba(0,0,0,.3);
+    }
+    .confirm {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,.5);
+      align-items: center;
+      justify-content: center;
+    }
+    .confirm .box {
+      background: white;
+      padding: 20px;
+      border-radius: 16px;
+      max-width: 320px;
+      width: 90%;
+      text-align: center;
+    }
+    .confirm button {
+      width: 100%;
+      margin-top: 10px;
+    }
+  </style>
 </head>
+
 <body>
-  <p>Carregando K-Genda 🚀</p>
+
+<header>K-Genda • Assistente Pessoal</header>
+
+<main>
+  <div class="card">
+    <h3>Status</h3>
+    <p id="status">App pronto ✅</p>
+  </div>
+
+  <div class="card">
+    <h3>Última ação</h3>
+    <p id="lastAction">Nenhuma</p>
+  </div>
+</main>
+
+<button class="mic" id="micBtn">🎤</button>
+
+<!-- CONFIRMAÇÃO -->
+<div class="confirm" id="confirmBox">
+  <div class="box">
+    <p id="confirmText"></p>
+    <button class="primary" onclick="confirmYes()">Confirmar</button>
+    <button class="ghost" onclick="confirmNo()">Cancelar</button>
+  </div>
+</div>
+
+<script>
+/* ===========================
+   SERVICE WORKER
+=========================== */
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('service-worker.js');
+}
+
+/* ===========================
+   ESTADO
+=========================== */
+let pendingAction = null;
+
+/* ===========================
+   VOZ
+=========================== */
+const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+const recognition = SpeechRecognition ? new SpeechRecognition() : null;
+
+if (recognition) {
+  recognition.lang = 'pt-BR';
+  recognition.interimResults = false;
+}
+
+/* ===========================
+   MICROFONE
+=========================== */
+document.getElementById("micBtn").onclick = () => {
+  if (!recognition) {
+    alert("Voz não suportada neste navegador");
+    return;
+  }
+  document.getElementById("status").innerText = "Ouvindo… 🎧";
+  recognition.start();
+};
+
+if (recognition) {
+  recognition.onresult = (e) => {
+    const text = e.results[0][0].transcript.toLowerCase();
+    handleVoice(text);
+  };
+
+  recognition.onerror = () => {
+    document.getElementById("status").innerText = "Erro no microfone";
+  };
+}
+
+/* ===========================
+   PROCESSAMENTO DE VOZ
+=========================== */
+function handleVoice(text) {
+  document.getElementById("status").innerText = `Você disse: "${text}"`;
+
+  if (text.includes("excluir")) {
+    if (text.includes("tarefa")) {
+      askConfirm("Excluir tarefa?", () => {
+        setAction("Tarefa excluída 🗑️");
+      });
+    }
+    else if (text.includes("agendamento")) {
+      askConfirm("Excluir agendamento?", () => {
+        setAction("Agendamento excluído 🗑️");
+      });
+    }
+    else {
+      askConfirm("Excluir tudo?", () => {
+        setAction("Tudo excluído 🗑️");
+      });
+    }
+  } else {
+    setAction("Comando não reconhecido");
+  }
+}
+
+/* ===========================
+   CONFIRMAÇÃO
+=========================== */
+function askConfirm(text, action) {
+  pendingAction = action;
+  document.getElementById("confirmText").innerText = text;
+  document.getElementById("confirmBox").style.display = "flex";
+}
+
+function confirmYes() {
+  document.getElementById("confirmBox").style.display = "none";
+  if (pendingAction) pendingAction();
+}
+
+function confirmNo() {
+  document.getElementById("confirmBox").style.display = "none";
+  setAction("Ação cancelada ❌");
+}
+
+/* ===========================
+   UTIL
+=========================== */
+function setAction(text) {
+  document.getElementById("lastAction").innerText = text;
+  document.getElementById("status").innerText = "Pronto ✅";
+}
+</script>
+
 </body>
 </html>
