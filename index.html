@@ -637,6 +637,30 @@ body.locked{overflow:hidden;height:100vh}
   <option value="720">12 h</option>
 </select>
 
+          <div style="margin-top:12px">
+            <label style="margin:0; display:flex; align-items:center; gap:10px; font-weight:900; color:#5f6f7b">
+              <input id="svcIsService" type="checkbox"> Este agendamento é um serviço
+            </label>
+            <div id="svcFields" style="display:none; margin-top:10px">
+              <div class="row">
+                <div class="col">
+                  <label>Valor por hora</label>
+                  <input class="input" id="svcRate" type="number" inputmode="decimal" placeholder="Ex.: 80">
+                </div>
+                <div class="col">
+                  <label>Valor devido (auto)</label>
+                  <input class="input" id="svcTotal" type="text" readonly placeholder="—">
+                </div>
+              </div>
+              <div class="hint" style="margin-top:10px">Cálculo: valor/hora × duração (em horas).</div>
+<label style="margin-top:10px; display:flex; gap:10px; align-items:center">
+  <input id="svcPaid" type="checkbox"> Pago
+</label>
+
+            </div>
+          </div>
+
+
                 <option value="15">15 min</option>
                 <option value="30" selected>30 min</option>
                 <option value="45">45 min</option>
@@ -1225,6 +1249,7 @@ function renderAppts(){
     const when = `${formatDateHuman(a.start)} • ${timeHM(a.start)}–${timeHM(a.end)}`;
     const rem = a.reminder || "none";
     const tag = rem==="both"?"Email+SMS": rem==="sms"?"Text": rem==="email"?"Email":"None";
+    const moneyTag = a.isService ? (formatMoneyBR(a.totalValue||0)) : null;
     const el = document.createElement("div");
     el.className = "item";
     el.innerHTML = `
@@ -1232,7 +1257,7 @@ function renderAppts(){
         <div class="split">
           <strong style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHTML(title)}</strong>
           <div class="spacer"></div>
-          <span class="tag">${tag}</span>
+          <span class="tag">${tag}</span>${moneyTag?` <span class="tag" style="background:#f2fff7;border-color:#d6f5e3;color:#177a4f">${moneyTag}</span>`:""}
         </div>
         <div class="muted" style="font-size:13px;margin-top:2px">${escapeHTML(c?c.name:"(Sem cliente)")}</div>
         <div class="muted" style="font-size:13px;margin-top:2px">${escapeHTML(when)}</div>
@@ -1271,6 +1296,12 @@ function loadApptToForm(a){
   const dur = Math.max(5, Math.round((new Date(a.end)-new Date(a.start))/60000));
   $("#apptDuration").value = String(dur);
   reminderType = a.reminder || "email";
+  const svcChk = document.getElementById('svcIsService');
+  const svcRate = document.getElementById('svcRate');
+  if(svcChk) svcChk.checked = !!a.isService;
+  if(svcRate) svcRate.value = a.ratePerHour ? String(a.ratePerHour) : '';
+  const svcPaid = document.getElementById('svcPaid'); if(svcPaid) svcPaid.checked = !!a.isPaid;
+  updateServiceUI();
   setReminderSeg(reminderType);
   checkConflicts();
   toast("Editando agendamento.");
@@ -1293,6 +1324,13 @@ function clearApptForm(){
   $("#apptTime").value = timeHM(d);
   $("#apptDuration").value = String(data.prefs?.duration || 30);
   reminderType = "email";
+  const svcChk2 = document.getElementById('svcIsService');
+  const svcRate2 = document.getElementById('svcRate');
+  const svcTotal2 = document.getElementById('svcTotal');
+  if(svcChk2) svcChk2.checked = false;
+  if(svcRate2) svcRate2.value = '';
+  if(svcTotal2) svcTotal2.value = '—'; const svcPaid2=document.getElementById('svcPaid'); if(svcPaid2) svcPaid2.checked=false;
+  updateServiceUI();
   setReminderSeg(reminderType);
   $("#conflictHint").style.display="none";
 }
@@ -1362,6 +1400,11 @@ $("#saveApptBtn").addEventListener("click", ()=>{
       end: e.toISOString(),
       durationMin: parseInt($("#apptDuration").value,10) || 30,
       reminder: reminderType,
+      isService: isService,
+      ratePerHour: isService ? ratePerHour : 0,
+      totalValue: isService ? totalValue : 0,
+      const svcPaidEl=document.getElementById('svcPaid');
+      isPaid: isService && svcPaidEl ? !!svcPaidEl.checked : false,
       phone, email, notes,
       createdAt: nowISO(),
       updatedAt: nowISO()
@@ -2293,6 +2336,93 @@ document.getElementById("chatMic")?.addEventListener("click",()=>{
   };
   chatRec.start();
   toast("Ouvindo...");
+});
+</script>
+
+
+<script>
+/* ===== FASE 3.0 - SERVIÇO NO AGENDAMENTO (ERP START) ===== */
+function minutesToHours(min){
+  return Math.max(0, (parseInt(min||"0",10) || 0) / 60);
+}
+function formatMoneyBR(v){
+  if(v===null || v===undefined || isNaN(v)) return "—";
+  return Number(v).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
+}
+function updateServiceUI(){
+  const chk = document.getElementById("svcIsService");
+  const fields = document.getElementById("svcFields");
+  const isSvc = !!chk?.checked;
+  if(fields) fields.style.display = isSvc ? "block" : "none";
+  updateServiceTotal();
+}
+function updateServiceTotal(){
+  const chk = document.getElementById("svcIsService");
+  const rateEl = document.getElementById("svcRate");
+  const totalEl = document.getElementById("svcTotal");
+  const durEl = document.getElementById("apptDuration");
+  if(!rateEl || !totalEl || !durEl) return;
+
+  const isSvc = !!chk?.checked;
+  if(!isSvc){ totalEl.value = "—"; return; }
+
+  const rate = parseFloat(String(rateEl.value||"").replace(",", ".")) || 0;
+  const durMin = parseInt(durEl.value || "0", 10) || 0;
+  const total = rate * (durMin/60);
+  totalEl.value = (rate>0 && durMin>0) ? formatMoneyBR(total) : "—";
+}
+
+document.addEventListener("DOMContentLoaded", ()=>{
+  const chk = document.getElementById("svcIsService");
+  const rate = document.getElementById("svcRate");
+  const dur = document.getElementById("apptDuration");
+  chk && chk.addEventListener("change", updateServiceUI);
+  rate && rate.addEventListener("input", updateServiceTotal);
+  dur && dur.addEventListener("change", updateServiceTotal);
+});
+</script>
+
+
+<script>
+function calcFinanceInsights(){
+  let paid=0, pending=0;
+  (data.appointments||[]).forEach(a=>{
+    if(a.isService && a.totalValue){
+      if(a.isPaid) paid+=a.totalValue;
+      else pending+=a.totalValue;
+    }
+  });
+  const el=document.getElementById("financeInsight");
+  if(el){
+    el.innerHTML =
+      "<div><strong>Recebido:</strong> "+paid.toLocaleString("pt-BR",{style:"currency",currency:"BRL"})+"</div>"+
+      "<div><strong>A receber:</strong> "+pending.toLocaleString("pt-BR",{style:"currency",currency:"BRL"})+"</div>";
+  }
+}
+
+</script>
+
+
+<script>
+/* ===== STABILITY HOTFIX ===== */
+/* Finance insights now run ONLY when explicitly requested */
+function runFinanceInsightsSafe(){
+  try{
+    if(typeof calcFinanceInsights === "function"){
+      calcFinanceInsights();
+      toast("Insights atualizados");
+    }
+  }catch(e){
+    console.warn("Finance insight skipped:", e);
+  }
+}
+</script>
+
+<script>
+/* ===== NAVIGATION GUARD ===== */
+window.addEventListener("error", function(e){
+  console.error("JS error guarded:", e.message);
+  return true;
 });
 </script>
 
