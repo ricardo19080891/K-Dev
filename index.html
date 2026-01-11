@@ -677,7 +677,7 @@ body.locked{overflow:hidden;height:100vh}
           <div class="hint" id="conflictHint" style="display:none"></div>
 
           <div class="btnRow">
-            <button class="btn good" id="saveApptBtn" type="button">Salvar</button>
+            <button type="button" class="btn good" onclick="doSave()">Salvar</button>
             <button class="btn secondary" id="clearApptBtn" type="button">Limpar</button>
           </div>
         </div>
@@ -1392,6 +1392,7 @@ $("#saveApptBtn").addEventListener("click", ()=>{
   doSave();
 
   function doSave(){
+  try{ if(window.event){ window.event.preventDefault(); } }catch(e){}
     const obj = {
       id: editingApptId || uid("apt"),
       customerId: cid,
@@ -1403,8 +1404,7 @@ $("#saveApptBtn").addEventListener("click", ()=>{
       isService: isService,
       ratePerHour: isService ? ratePerHour : 0,
       totalValue: isService ? totalValue : 0,
-      const svcPaidEl=document.getElementById('svcPaid');
-      isPaid: isService && svcPaidEl ? !!svcPaidEl.checked : false,
+      isPaid: isService ? !!document.getElementById('svcPaid')?.checked : false,
       phone, email, notes,
       createdAt: nowISO(),
       updatedAt: nowISO()
@@ -2399,32 +2399,41 @@ function calcFinanceInsights(){
       "<div><strong>A receber:</strong> "+pending.toLocaleString("pt-BR",{style:"currency",currency:"BRL"})+"</div>";
   }
 }
-
+document.addEventListener("DOMContentLoaded", calcFinanceInsights);
 </script>
 
 
 <script>
-/* ===== STABILITY HOTFIX ===== */
-/* Finance insights now run ONLY when explicitly requested */
-function runFinanceInsightsSafe(){
-  try{
-    if(typeof calcFinanceInsights === "function"){
-      calcFinanceInsights();
-      toast("Insights atualizados");
-    }
-  }catch(e){
-    console.warn("Finance insight skipped:", e);
-  }
+function saveAppointment(e){
+ e && e.preventDefault();
+ try{
+  const id = document.getElementById("apptId")?.value || Date.now().toString();
+  const dur = parseInt(document.getElementById("apptDuration")?.value||30,10);
+  const isService = document.getElementById("svcIsService")?.checked || false;
+  const rate = parseFloat(document.getElementById("svcRate")?.value||0);
+  const total = isService ? rate*(dur/60) : 0;
+  const isPaid = document.getElementById("svcPaid")?.checked || false;
+  const appt = {
+    id,
+    title: document.getElementById("apptTitle")?.value || "",
+    date: document.getElementById("apptDate")?.value,
+    time: document.getElementById("apptTime")?.value,
+    durationMin: dur,
+    notes: document.getElementById("apptNotes")?.value || "",
+    isService,
+    ratePerHour: rate,
+    totalValue: total,
+    isPaid
+  };
+  data.appointments = data.appointments || [];
+  const i = data.appointments.findIndex(a=>a.id===id);
+  if(i>=0) data.appointments[i]=appt; else data.appointments.push(appt);
+  saveData(currentUser.id,data);
+  renderAppointments();
+  alert("Agendamento salvo");
+ }catch(err){ console.error(err); alert("Erro ao salvar"); }
 }
 </script>
-
-<script>
-/* ===== NAVIGATION GUARD ===== */
-window.addEventListener("error", function(e){
-  console.error("JS error guarded:", e.message);
-  return true;
-});
-</script>
-
 </body>
+
 </html>
