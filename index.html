@@ -354,8 +354,88 @@ body.locked{overflow:hidden;height:100vh}
 .app{
   min-height:100vh;
 }
+
+/* FASE 1: Tabs viram dropdown */
+.tabs{display:none !important;}
+
+.navMenuBtn{
+  border:1px solid rgba(255,255,255,.35);
+  background:rgba(0,0,0,.12);
+  color:#fff;
+  font-weight:700;
+  padding:8px 12px;
+  border-radius:999px;
+  margin-left:8px;
+}
+.navMenu{
+  position:absolute;
+  top:58px;
+  right:10px;
+  width:190px;
+  background:#ffffff;
+  border-radius:14px;
+  box-shadow:0 14px 40px rgba(0,0,0,.22);
+  padding:10px;
+  z-index:9999;
+  display:none;
+}
+.navMenu.open{display:block;}
+.navMenu .nmi{
+  width:100%;
+  text-align:left;
+  border:0;
+  background:transparent;
+  padding:10px 10px;
+  border-radius:10px;
+  font-size:14px;
+}
+.navMenu .nmi:active{transform:scale(.99);}
+.navMenu .nmi:hover{background:#f2f6f7;}
+.navMenu .sep{
+  height:1px;
+  background:#e7eef0;
+  margin:6px 0;
+}
+.navMenu .erp{color:var(--teal2); font-weight:800;}
+
+.kpiBox{
+  background:#f7fbfc;
+  border:1px solid #e7eef0;
+  border-radius:14px;
+  padding:12px;
+}
+.kpiVal{font-size:18px;font-weight:900;color:#0b4b57}
+.kpiLbl{font-size:12px;color:#6f8790;margin-top:2px}
 </style>
+
+
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+
+<style>
+/* FIX MODAL SCROLL */
+body.modal-open {
+  overflow: hidden;
+}
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.35);
+  z-index: 999;
+}
+.modal {
+  position: fixed;
+  inset: 5% auto auto 50%;
+  transform: translateX(-50%);
+  width: min(94vw, 520px);
+  max-height: 90vh;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  background: #fff;
+  border-radius: 16px;
+  z-index: 1000;
+}
+</style>
+
 </head>
 <body>
 
@@ -422,7 +502,19 @@ body.locked{overflow:hidden;height:100vh}
       </div>
       <div class="topActions">
         <div class="pill" id="todayPill">Hoje</div>
-        <div class="avatarBtn" id="avatarBtn">?</div>
+        <button class="navMenuBtn" id="navMenuBtn">MENU</button>
+                <div class="navMenu" id="navMenu">
+          <button class="nmi" onclick="goTab('dashboard')">Dashboard</button>
+          <button class="nmi" onclick="goTab('customers')">Clientes</button>
+          <button class="nmi" onclick="goTab('appointments')">Agendar</button>
+          <button class="nmi" onclick="goTab('calendar')">Calendário</button>
+          <button class="nmi" onclick="goTab('messaging')">Mensagens</button>
+          <button class="nmi" onclick="goTab('settings')">Configuração</button>
+          <button class="nmi" onclick="goTab('new')">+ Novo</button>
+          <div class="sep"></div>
+          <button class="nmi erp" onclick="goTab('erp')">ERP</button>
+        </div>
+<div class="avatarBtn" id="avatarBtn">?</div>
         <div class="menu" id="menu">
           <div class="mi" id="miProfile"><strong id="miName">Conta</strong><div class="spacer"></div><small id="miEmail"></small></div>
           <div class="sep"></div>
@@ -648,11 +740,18 @@ body.locked{overflow:hidden;height:100vh}
                   <input class="input" id="svcRate" type="number" inputmode="decimal" placeholder="Ex.: 80">
                 </div>
                 <div class="col">
-                  <label>Valor devido (auto)</label>
+                  <label>Valor devido</label>
                   <input class="input" id="svcTotal" type="text" readonly placeholder="—">
                 </div>
               </div>
-              <div class="hint" style="margin-top:10px">Cálculo: valor/hora × duração (em horas).</div>
+              
+<div class="row" style="margin-top:8px">
+  <label class="chk" style="display:flex;align-items:center;gap:10px;font-weight:700">
+    <input type="checkbox" id="svcManualChk">
+    Usar valor fixo manual (digite no campo “Valor devido”)
+  </label>
+</div>
+<div class="hint" style="margin-top:10px">Cálculo: valor/hora × duração (em horas).</div>
 <label style="margin-top:10px; display:flex; gap:10px; align-items:center">
   <input id="svcPaid" type="checkbox"> Pago
 </label>
@@ -677,7 +776,7 @@ body.locked{overflow:hidden;height:100vh}
           <div class="hint" id="conflictHint" style="display:none"></div>
 
           <div class="btnRow">
-            <button type="button" class="btn good" onclick="doSave()">Salvar</button>
+            <button class="btn good" id="saveApptBtn" type="button">Salvar</button>
             <button class="btn secondary" id="clearApptBtn" type="button">Limpar</button>
           </div>
         </div>
@@ -804,6 +903,85 @@ body.locked{overflow:hidden;height:100vh}
         </div>
       </div>
     </section>
+<section class="page" id="page-erp" aria-hidden="true">
+
+  <div class="pageTitle">ERP</div>
+
+  <div class="card">
+    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <div style="flex:1;min-width:200px">
+        <label style="font-weight:800;display:block;margin-bottom:6px">Cliente</label>
+        <select class="input" id="erpClientSelect"></select>
+      </div>
+      <div style="min-width:170px">
+        <label style="font-weight:800;display:block;margin-bottom:6px">Período</label>
+        <select class="input" id="erpPeriod">
+          <option value="all">Tudo</option>
+          <option value="30">Últimos 30 dias</option>
+          <option value="90">Últimos 90 dias</option>
+          <option value="365">Últimos 12 meses</option>
+        </select>
+      </div>
+    </div>
+    <div style="margin-top:10px;color:#5b7b83;font-size:13px">
+      Global = visão geral. Selecione um cliente para ver números individuais.
+    </div>
+  </div>
+
+  <div class="card">
+    <h3 style="margin-bottom:10px">Resumo financeiro</h3>
+    <div class="row" style="gap:10px;flex-wrap:wrap">
+      <div class="kpiBox" style="flex:1;min-width:140px">
+        <div class="kpiVal" id="erpPaid">R$ 0,00</div>
+        <div class="kpiLbl">Recebido</div>
+      </div>
+      <div class="kpiBox" style="flex:1;min-width:140px">
+        <div class="kpiVal" id="erpPending">R$ 0,00</div>
+        <div class="kpiLbl">A receber</div>
+      </div>
+      <div class="kpiBox" style="flex:1;min-width:140px">
+        <div class="kpiVal" id="erpOverdue">R$ 0,00</div>
+        <div class="kpiLbl">Atrasado</div>
+      </div>
+      <div class="kpiBox" style="flex:1;min-width:140px">
+        <div class="kpiVal" id="erpInstallments">R$ 0,00</div>
+        <div class="kpiLbl">Parcelado</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3 style="margin-bottom:10px">Gráficos</h3>
+    <canvas id="erpChartMain" height="140"></canvas>
+    <div style="height:12px"></div>
+    <canvas id="erpChartByClient" height="160"></canvas>
+  </div>
+
+  <div class="card">
+    <h3 style="margin-bottom:10px">Movimentações</h3>
+    <div style="overflow:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:13px" id="erpTable">
+        <thead>
+          <tr style="text-align:left;border-bottom:1px solid #e7eef0">
+            <th style="padding:8px 6px">Data</th>
+            <th style="padding:8px 6px">Cliente</th>
+            <th style="padding:8px 6px">Serviço</th>
+            <th style="padding:8px 6px">Valor</th>
+            <th style="padding:8px 6px">Status</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3 style="margin-bottom:10px">IA • Insights</h3>
+    <div id="erpAI" style="display:flex;flex-direction:column;gap:8px"></div>
+  </div>
+
+</section>
+
 
     <!-- New -->
     <section class="page" id="page-new">
@@ -1109,6 +1287,14 @@ function openCustomerEditor(c=null){
     <label>Nome</label><input class="input" id="mName" value="${escapeAttr(obj.name)}">
     <label>Telefone</label><input class="input" id="mPhone" value="${escapeAttr(obj.phone)}" placeholder="(DDD) número">
     <label>Email</label><input class="input" id="mEmail" value="${escapeAttr(obj.email)}" placeholder="email@dominio.com">
+    <label>CPF</label><input class="input" id="mCPF" placeholder="000.000.000-00">
+    <label>Data de nascimento</label><input class="input" id="mBirth" type="date">
+    <label>CEP</label><input class="input" id="mCEP" placeholder="00000-000">
+    <label>Logradouro</label><input class="input" id="mStreet">
+    <label>Número</label><input class="input" id="mNumber">
+    <label>Complemento</label><input class="input" id="mComp">
+    <label>Bairro</label><input class="input" id="mDistrict">
+    <label>Cidade/Estado</label><input class="input" id="mCity">
     <label>Notas</label><textarea id="mNotes">${escapeHTML(obj.notes||"")}</textarea>
   `, [
     {label:"Cancelar", variant:"secondary", onClick: closeModal},
@@ -1392,8 +1578,22 @@ $("#saveApptBtn").addEventListener("click", ()=>{
   doSave();
 
   function doSave(){
-  try{ if(window.event){ window.event.preventDefault(); } }catch(e){}
-    const obj = {
+
+    const svcChkEl = document.getElementById('svcIsService');
+    const isService = svcChkEl ? svcChkEl.checked : false;
+    const ratePerHour = isService ? parseFloat(document.getElementById('svcRate')?.value||"0") : 0;
+    let totalValue = 0;
+    if(isService){
+      const durMin = parseInt(document.getElementById('apptDuration')?.value||"0",10) || 0;
+      const ratePerHour = parseMoney(document.getElementById('svcRate')?.value||"0");
+      const manual = document.getElementById('svcManualChk')?.checked;
+      if(manual){
+        totalValue = round2(parseMoney(document.getElementById('svcTotal')?.value||"0"));
+      }else{
+        totalValue = round2(ratePerHour * (durMin/60));
+      }
+    }
+const obj = {
       id: editingApptId || uid("apt"),
       customerId: cid,
       title,
@@ -1405,6 +1605,16 @@ $("#saveApptBtn").addEventListener("click", ()=>{
       ratePerHour: isService ? ratePerHour : 0,
       totalValue: isService ? totalValue : 0,
       isPaid: isService ? !!document.getElementById('svcPaid')?.checked : false,
+      // ERP NORMALIZADO (FASE 2.2)
+      valorTotal: (isService ? totalValue : 0),
+      pago: (isService ? !!document.getElementById('svcPaid')?.checked : false),
+      statusFinanceiro: (function(){
+        const v = (isService ? totalValue : 0);
+        const paid = (isService ? !!document.getElementById('svcPaid')?.checked : false);
+        if(v<=0) return null;
+        if(paid) return 'pago';
+        return (s && s.toDate && s.toDate() < new Date()) ? 'atrasado' : 'a_receber';
+      })(),
       phone, email, notes,
       createdAt: nowISO(),
       updatedAt: nowISO()
@@ -1669,7 +1879,7 @@ $("#prefDuration").addEventListener("change", ()=>{ data.prefs.duration = parseI
 
 $("#voiceApptBtn")?.addEventListener("click", ()=> startVoiceAppt());
 $("#voiceNotesBtn")?.addEventListener("click", ()=> startVoiceNotes());
-$("#dashRefresh")?.addEventListener("click", ()=>{ renderDashboard(); toast("Dashboard atualizada."); });
+$("#dashRefresh")?.addEventListener("click", ()=>{ renderDashboard(); try{ updateERPFinance(); }catch(e){} toast("Dashboard atualizada."); });
 
 /* ---------- Quick actions ---------- */
 $("#quickCustomer").addEventListener("click", ()=>{ goTab("customers"); openCustomerEditor(null); });
@@ -2349,6 +2559,27 @@ function formatMoneyBR(v){
   if(v===null || v===undefined || isNaN(v)) return "—";
   return Number(v).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
 }
+
+function parseMoney(v){
+  if(v===null||v===undefined) return 0;
+  if(typeof v==="number") return isFinite(v)?v:0;
+  let s=String(v).trim();
+  if(!s) return 0;
+  // remove currency and spaces
+  s = s.replace(/[^0-9,\.\-]/g,'');
+  // handle pt-BR format: 1.234,56
+  const hasComma = s.indexOf(',')>=0;
+  const hasDot = s.indexOf('.')>=0;
+  if(hasComma && hasDot){
+    s = s.replace(/\./g,'').replace(/,/g,'.');
+  }else if(hasComma && !hasDot){
+    s = s.replace(/,/g,'.');
+  }
+  const n = Number.parseFloat(s);
+  return Number.isFinite(n)?n:0;
+}
+function round2(n){ return Math.round((n+Number.EPSILON)*100)/100; }
+
 function updateServiceUI(){
   const chk = document.getElementById("svcIsService");
   const fields = document.getElementById("svcFields");
@@ -2360,23 +2591,36 @@ function updateServiceTotal(){
   const chk = document.getElementById("svcIsService");
   const rateEl = document.getElementById("svcRate");
   const totalEl = document.getElementById("svcTotal");
+  const manualEl = document.getElementById("svcManualChk");
   const durEl = document.getElementById("apptDuration");
   if(!rateEl || !totalEl || !durEl) return;
 
   const isSvc = !!chk?.checked;
   if(!isSvc){ totalEl.value = "—"; return; }
 
-  const rate = parseFloat(String(rateEl.value||"").replace(",", ".")) || 0;
+  const isManual = !!manualEl?.checked;
+  // if manual, keep user's typed value
+  if(isManual){
+    totalEl.readOnly = false;
+    if(totalEl.value === "—") totalEl.value = "";
+    return;
+  }
+
+  totalEl.readOnly = true;
+  const rate = parseMoney(rateEl.value);
   const durMin = parseInt(durEl.value || "0", 10) || 0;
-  const total = rate * (durMin/60);
-  totalEl.value = (rate>0 && durMin>0) ? formatMoneyBR(total) : "—";
+  const total = round2(rate * (durMin/60));
+  totalEl.value = (rate>0 && durMin>0) ? String(total.toFixed(2)) : "—";
 }
+
 
 document.addEventListener("DOMContentLoaded", ()=>{
   const chk = document.getElementById("svcIsService");
   const rate = document.getElementById("svcRate");
   const dur = document.getElementById("apptDuration");
   chk && chk.addEventListener("change", updateServiceUI);
+  const manual = document.getElementById("svcManualChk");
+  manual && manual.addEventListener("change", ()=>{ updateServiceTotal(); });
   rate && rate.addEventListener("input", updateServiceTotal);
   dur && dur.addEventListener("change", updateServiceTotal);
 });
@@ -2404,36 +2648,360 @@ document.addEventListener("DOMContentLoaded", calcFinanceInsights);
 
 
 <script>
-function saveAppointment(e){
- e && e.preventDefault();
- try{
-  const id = document.getElementById("apptId")?.value || Date.now().toString();
-  const dur = parseInt(document.getElementById("apptDuration")?.value||30,10);
-  const isService = document.getElementById("svcIsService")?.checked || false;
-  const rate = parseFloat(document.getElementById("svcRate")?.value||0);
-  const total = isService ? rate*(dur/60) : 0;
-  const isPaid = document.getElementById("svcPaid")?.checked || false;
-  const appt = {
-    id,
-    title: document.getElementById("apptTitle")?.value || "",
-    date: document.getElementById("apptDate")?.value,
-    time: document.getElementById("apptTime")?.value,
-    durationMin: dur,
-    notes: document.getElementById("apptNotes")?.value || "",
-    isService,
-    ratePerHour: rate,
-    totalValue: total,
-    isPaid
-  };
-  data.appointments = data.appointments || [];
-  const i = data.appointments.findIndex(a=>a.id===id);
-  if(i>=0) data.appointments[i]=appt; else data.appointments.push(appt);
-  saveData(currentUser.id,data);
-  renderAppointments();
-  alert("Agendamento salvo");
- }catch(err){ console.error(err); alert("Erro ao salvar"); }
+document.addEventListener("DOMContentLoaded",()=>{
+  const dash = document.querySelector("#page-dashboard");
+  if(!dash) return;
+  const insights = dash.querySelector(".card");
+  if(!insights) return;
+
+  if(!document.getElementById("erpFinanceContainer")){
+    const box = document.createElement("div");
+    box.id = "erpFinanceContainer";
+    box.style.marginTop="12px";
+    box.style.padding="12px";
+    box.style.borderRadius="12px";
+    box.style.background="#f4fbfc";
+    box.innerHTML = `
+      <strong>Financeiro</strong><br>
+      Recebido: <b id="dashPaid">R$ 0,00</b><br>
+      A receber: <b id="dashPending">R$ 0,00</b>
+    `;
+    insights.prepend(box);
+  }
+});
+
+function updateERPFinance(){
+  let paid=0, pending=0;
+  const list = data.appts || data.appointments || [];
+  list.forEach(a=>{
+    const isSvc = !!(a.isService || a.servico || a.service);
+    const val = parseMoney(a.totalValue ?? a.valor ?? a.value ?? 0);
+    if(isSvc && val>0){
+      const paidFlag = !!(a.isPaid || a.paid || a.pago);
+      if(paidFlag) paid += val;
+      else pending += val;
+    }
+  });
+  $('#dashPaid').textContent = formatMoneyBR(paid);
+  $('#dashPending').textContent = formatMoneyBR(pending);
 }
+
 </script>
+
+<script>
+function toggleNavMenu(open){
+  const m = document.getElementById('navMenu');
+  if(!m) return;
+  const shouldOpen = (open === undefined) ? !m.classList.contains('open') : open;
+  m.classList.toggle('open', shouldOpen);
+}
+document.addEventListener('DOMContentLoaded', ()=>{
+  const btn = document.getElementById('navMenuBtn');
+  const menu = document.getElementById('navMenu');
+  if(btn && menu){
+    btn.addEventListener('click', (e)=>{ e.stopPropagation(); toggleNavMenu(); });
+    menu.addEventListener('click', (e)=>{ e.stopPropagation(); });
+  }
+});
+document.addEventListener('click', ()=> toggleNavMenu(false));
+
+// Fechar o menu sempre que trocar de tela
+(function(){
+  const _goTab = window.goTab;
+  if(typeof _goTab === 'function'){
+    window.goTab = function(key){
+      toggleNavMenu(false);
+      return _goTab(key);
+    }
+  }
+})();
+</script>
+
+<script>
+let __erpChartMain = null;
+let __erpChartByClient = null;
+
+function _erpFmtBRL(v){
+  return Number(v||0).toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
+}
+function _erpParseDate(d){
+  try{
+    if(!d) return null;
+    if(d instanceof Date) return d;
+    const s = String(d);
+    if(/^\d{10,13}$/.test(s)) return new Date(Number(s));
+    const dt = new Date(s);
+    if(!isNaN(dt.getTime())) return dt;
+  }catch(e){}
+  return null;
+}
+function _erpGetClientId(a){
+  return a.customerId ?? a.clientId ?? a.customer ?? a.client ?? a.clienteId ?? a.cliente ?? "";
+}
+function _erpGetClientNameById(id){
+  const list = data.customers || [];
+  const c = list.find(x => (x.id??x._id??x.key??x.email??x.phone??x.name??x.nome) == id);
+  return c ? (c.name||c.nome||c.fullName||c.title||String(id)) : (id ? String(id) : "—");
+}
+function _erpGetServiceTitle(a){
+  return a.title ?? a.serviceTitle ?? a.nome ?? a.name ?? a.desc ?? a.description ?? "Serviço";
+}
+
+// OPÇÃO A (definitivo): se tem valor, conta como serviço
+function _erpTotal(a){
+  const v = Number(a.valorTotal ?? a.totalValue ?? a.total ?? a.amount ?? 0) || 0;
+  return v;
+}
+function _erpIsService(a){
+  return _erpTotal(a) > 0;
+}
+function _erpIsPaid(a){
+  return (a.pago ?? a.isPaid ?? a.paid ?? false) ? true : false;
+}
+function _erpStatus(a){
+  // usa statusFinanceiro se existir
+  if(a.statusFinanceiro) return a.statusFinanceiro;
+  const paid = _erpIsPaid(a);
+  if(paid) return "pago";
+  const dt = _erpParseDate(a.start ?? a.date ?? a.day ?? a.when);
+  if(dt && dt < new Date()) return "atrasado";
+  return "a_receber";
+}
+function _erpIsInstallment(a){
+  return (a.paymentType ?? a.payType ?? a.pagamentoTipo) === "parcelado" || (Number(a.installmentsCount ?? a.parcelas ?? 0) > 1);
+}
+function _erpGetAppts(){
+  // fonte real do app (Storage Model): data.appts
+  return data.appts || [];
+}
+function _erpFilterByPeriod(list, days){
+  if(days === "all") return list;
+  const n = Number(days)||0;
+  if(!n) return list;
+  const now = new Date();
+  const min = new Date(now.getTime() - n*24*60*60*1000);
+  return list.filter(a => {
+    const dt = _erpParseDate(a.start ?? a.date ?? a.day ?? a.when ?? a.startDate);
+    return dt && dt >= min && dt <= now;
+  });
+}
+function _erpCompute(list, clientId){
+  let paid=0, pending=0, overdue=0, installments=0;
+  const rows = [];
+  list.forEach(a=>{
+    const total = _erpTotal(a);
+    if(total<=0) return; // OPÇÃO A: só entra se tem valor
+    const cid = _erpGetClientId(a);
+    if(clientId && clientId !== "all" && String(cid) !== String(clientId)) return;
+
+    const dt = _erpParseDate(a.start ?? a.date ?? a.day ?? a.when ?? a.startDate);
+    const paidFlag = _erpIsPaid(a);
+    const inst = _erpIsInstallment(a);
+    const st = _erpStatus(a);
+
+    if(paidFlag) paid += total;
+    else pending += total;
+
+    if(st === "atrasado") overdue += total;
+    if(inst && !paidFlag) installments += total;
+
+    rows.push({
+      dt: dt,
+      client: _erpGetClientNameById(cid),
+      service: _erpGetServiceTitle(a),
+      total: total,
+      status: paidFlag ? "Pago" : (st==="atrasado" ? "Atrasado" : "Em aberto")
+    });
+  });
+
+  rows.sort((a,b)=>(b.dt?.getTime?.()||0)-(a.dt?.getTime?.()||0));
+  return {paid, pending, overdue, installments, rows};
+}
+function _erpTopClients(list, topN=6){
+  const map = new Map();
+  list.forEach(a=>{
+    const total=_erpTotal(a);
+    if(total<=0) return;
+    const cid=_erpGetClientId(a);
+    map.set(String(cid), (map.get(String(cid))||0) + total);
+  });
+  return [...map.entries()].map(([cid,val])=>({cid,val})).sort((a,b)=>b.val-a.val).slice(0,topN);
+}
+function _erpRenderCharts(computed, list){
+  const ctx1 = document.getElementById("erpChartMain");
+  if(ctx1){
+    if(__erpChartMain) __erpChartMain.destroy();
+    __erpChartMain = new Chart(ctx1,{
+      type:"doughnut",
+      data:{labels:["Recebido","A receber"],datasets:[{data:[computed.paid, computed.pending]}]},
+      options:{responsive:true,plugins:{legend:{position:"bottom"}}}
+    });
+  }
+  const ctx2 = document.getElementById("erpChartByClient");
+  if(ctx2){
+    if(__erpChartByClient) __erpChartByClient.destroy();
+    const top = _erpTopClients(list, 6);
+    const labels = top.map(x=>_erpGetClientNameById(x.cid));
+    const values = top.map(x=>x.val);
+    __erpChartByClient = new Chart(ctx2,{
+      type:"bar",
+      data:{labels:labels,datasets:[{label:"Receita (serviços)",data:values}]},
+      options:{responsive:true,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true}}}
+    });
+  }
+}
+function _erpRenderTable(rows){
+  const tb = document.querySelector("#erpTable tbody");
+  if(!tb) return;
+  tb.innerHTML = "";
+  const fmtDate = (d)=> d ? d.toLocaleDateString("pt-BR") : "—";
+  rows.slice(0,80).forEach(r=>{
+    const tr = document.createElement("tr");
+    tr.style.borderBottom="1px solid #eef4f6";
+    tr.innerHTML = `
+      <td style="padding:8px 6px;white-space:nowrap">${fmtDate(r.dt)}</td>
+      <td style="padding:8px 6px">${r.client}</td>
+      <td style="padding:8px 6px">${r.service}</td>
+      <td style="padding:8px 6px;white-space:nowrap">${_erpFmtBRL(r.total)}</td>
+      <td style="padding:8px 6px;white-space:nowrap">${r.status}</td>`;
+    tb.appendChild(tr);
+  });
+}
+function _erpRenderAI(computed, list, clientId){
+  const box = document.getElementById("erpAI");
+  if(!box) return;
+  box.innerHTML = "";
+  const total = computed.paid + computed.pending;
+  const ratePaid = total>0 ? (computed.paid/total)*100 : 0;
+
+  const insights = [];
+  if(total>0){
+    insights.push(`Taxa de recebimento: <b>${ratePaid.toFixed(0)}%</b>. ${ratePaid<60 ? "Sugestão: priorize cobranças de pendências." : "Bom ritmo de recebimento."}`);
+  }else{
+    insights.push("IA: ainda não encontrei serviços com valor. Dica: informe o valor/hora no agendamento para ele entrar no ERP.");
+  }
+  if(computed.overdue>0){
+    insights.push(`Há <b>${_erpFmtBRL(computed.overdue)}</b> em <b>atraso</b>. Sugestão: enviar lembrete automático para estes clientes.`);
+  }
+  const top = _erpTopClients(list, 1)[0];
+  if(top){
+    insights.push(`Top cliente: <b>${_erpGetClientNameById(top.cid)}</b> (${_erpFmtBRL(top.val)}). Sugestão: oferecer pacote/recorrência.`);
+  }
+  if(clientId && clientId!=="all"){
+    insights.push(`IA: visão individual ativa. Você pode comparar o valor recebido vs em aberto desse cliente para priorizar cobranças.`);
+  }
+
+  insights.forEach(t=>{
+    const div = document.createElement("div");
+    div.className="pill";
+    div.style.background="#f4fbfc";
+    div.style.border="1px solid #e7eef0";
+    div.style.color="#0b4b57";
+    div.style.borderRadius="12px";
+    div.style.padding="10px";
+    div.innerHTML = t;
+    box.appendChild(div);
+  });
+}
+function _erpFillClientSelect(){
+  const sel = document.getElementById("erpClientSelect");
+  if(!sel) return;
+  const clients = (data.customers || []).slice();
+  const getId = (c)=> String(c.id ?? c._id ?? c.key ?? c.email ?? c.phone ?? c.name ?? c.nome);
+  const getName = (c)=> c.name || c.nome || c.fullName || c.title || "Cliente";
+
+  sel.innerHTML = "";
+  const optAll = document.createElement("option");
+  optAll.value = "all";
+  optAll.textContent = "Todos os clientes (global)";
+  sel.appendChild(optAll);
+
+  clients.forEach(c=>{
+    const o=document.createElement("option");
+    o.value = getId(c);
+    o.textContent = getName(c);
+    sel.appendChild(o);
+  });
+}
+function renderERP(){
+  const listAll = _erpGetAppts();
+  const period = document.getElementById("erpPeriod")?.value || "all";
+  const list = _erpFilterByPeriod(listAll, period);
+  const clientId = document.getElementById("erpClientSelect")?.value || "all";
+
+  const computed = _erpCompute(list, clientId);
+
+  const rootERP = document.getElementById("page-erp") || document;
+  const set = (id,val)=>{ const el=rootERP.querySelector("#"+id); if(el) el.textContent=_erpFmtBRL(val); };
+  set("erpPaid", computed.paid);
+  set("erpPending", computed.pending);
+  set("erpOverdue", computed.overdue);
+  set("erpInstallments", computed.installments);
+
+  _erpRenderCharts(computed, list);
+  _erpRenderTable(computed.rows);
+  _erpRenderAI(computed, list, clientId);
+}
+
+// Hook no goTab: quando abrir ERP, renderiza
+document.addEventListener("DOMContentLoaded", ()=>{
+  const _goTab = window.goTab;
+  if(typeof _goTab === "function"){
+    window.goTab = function(key){
+      const r = _goTab(key);
+      if(key === "erp"){
+        setTimeout(()=>{ _erpFillClientSelect(); renderERP(); }, 0);
+      }
+      return r;
+    }
+  }
+  document.addEventListener("change", (e)=>{
+    if(e.target && (e.target.id==="erpClientSelect" || e.target.id==="erpPeriod")){
+      renderERP();
+    }
+  });
+});
+</script>
+
+
+<script>
+// FASE 2.3 – MIGRADOR AUTOMÁTICO DE VALORES (RODA 1x)
+(function(){
+  try{
+    if(localStorage.getItem("kgenda_migrated_values")==="1") return;
+    if(!window.data || !Array.isArray(data.appts)) return;
+
+    // captura valores visíveis R$ xxx,xx na lista
+    const texts = Array.from(document.querySelectorAll("*"))
+      .map(el=>el.textContent||"")
+      .filter(t=>/R\$\s*\d+[\.,]\d{2}/.test(t));
+
+    let values = texts.map(t=>{
+      const m = t.match(/R\$\s*(\d+[\.,]\d{2})/);
+      if(!m) return null;
+      return Number(m[1].replace(".","").replace(",","."));
+    }).filter(v=>v && v>0);
+
+    // aplica sequencialmente aos agendamentos sem valorTotal
+    let vi = 0;
+    data.appts.forEach(a=>{
+      if((a.valorTotal==null || a.valorTotal===0) && values[vi]!=null){
+        a.valorTotal = values[vi];
+        a.pago = false;
+        a.statusFinanceiro = "a_receber";
+        vi++;
+      }
+    });
+
+    if(window.saveData) saveData();
+    localStorage.setItem("kgenda_migrated_values","1");
+    console.log("Migrador ERP executado");
+  }catch(e){ console.warn("Migrador ERP falhou", e); }
+})();
+</script>
+
 </body>
+
+
 
 </html>
