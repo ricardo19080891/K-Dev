@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+  <title>Criar conta • Finance Pro</title>
+  <meta name="theme-color" content="#0b1220"/>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial}
+    body{
+      min-height:100vh;display:flex;align-items:center;justify-content:center;
+      padding:24px;background:radial-gradient(circle at top,#12224d,#050814);color:#fff;
+    }
+    .card{
+      width:min(420px, 100%);border-radius:22px;padding:22px;
+      background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.14);
+      backdrop-filter:blur(18px);box-shadow:0 18px 60px rgba(0,0,0,.35);
+    }
+    .brand{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
+    .brand h1{font-size:20px}
+    .brand .sub{opacity:.85;font-weight:600}
+    label{display:block;margin-top:12px;font-size:13px;opacity:.9}
+    input,select{
+      width:100%;padding:12px 12px;border-radius:14px;margin-top:8px;
+      border:1px solid rgba(255,255,255,0.14);background:rgba(0,0,0,0.25);color:#fff;outline:none;
+    }
+    .row{display:flex;gap:10px}
+    .row > *{flex:1}
+    .btn{
+      margin-top:14px;width:100%;padding:12px 14px;border:none;border-radius:14px;
+      font-weight:800;background:linear-gradient(135deg, rgba(0,234,255,.95), rgba(107,107,255,.95));color:#041018;
+    }
+    .btn-secondary{
+      margin-top:10px;width:100%;padding:12px 14px;border-radius:14px;
+      border:1px solid rgba(255,255,255,0.18);background:rgba(255,255,255,0.08);color:#fff;font-weight:800;
+    }
+    .msg{margin-top:10px;font-size:13px;opacity:.9}
+    a{color:#9aa7ff;text-decoration:none;font-weight:700}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="brand">
+      <h1>Criar conta</h1>
+      <div class="sub">Finance Pro • By K-dev</div>
+    </div>
+
+    <label>Email</label>
+    <input id="email" type="email" placeholder="seu@email.com" autocomplete="email"/>
+
+    <label>Senha</label>
+    <input id="pass" type="password" placeholder="mínimo 4 caracteres" autocomplete="new-password"/>
+
+    <div class="row">
+      <div>
+        <label>Plano</label>
+        <select id="plan">
+          <option value="basic">Básico</option>
+          <option value="premium">Premium</option>
+        </select>
+      </div>
+      <div>
+        <label>&nbsp;</label>
+        <button class="btn-secondary" onclick="quickFill()">Auto</button>
+      </div>
+    </div>
+
+    <button class="btn" onclick="register()">Registrar</button>
+
+    <div class="msg" id="msg"></div>
+    <div class="msg" style="text-align:center; margin-top:12px;">
+      Já tem conta? <a href="login.html">Entrar</a>
+    </div>
+  </div>
+
+<script>
+function getUsers(){
+  try{ return JSON.parse(localStorage.getItem('users')||'[]'); }catch(e){ return []; }
+}
+function setUsers(users){ localStorage.setItem('users', JSON.stringify(users)); }
+function quickFill(){
+  document.getElementById('email').value = 'user'+Math.floor(Math.random()*1000)+'@kdev.local';
+  document.getElementById('pass').value = '1234';
+}
+function register(){
+  const email = document.getElementById('email').value.trim().toLowerCase();
+  const pass = document.getElementById('pass').value;
+  const plan = document.getElementById('plan').value;
+  const msg = document.getElementById('msg');
+  msg.textContent='';
+  if(!email || !pass){ msg.textContent='Informe email e senha.'; return; }
+  if(pass.length < 4){ msg.textContent='Senha muito curta (mínimo 4).'; return; }
+  const users = getUsers();
+  if(users.some(x => (x.email||'').toLowerCase()===email)){ msg.textContent='Este email já está registrado.'; return; }
+  const u = { id: 'u'+Date.now(), email, pass, plan, createdAt: Date.now() };
+  users.push(u);
+  setUsers(users);
+  localStorage.setItem('loggedUser', JSON.stringify({id:u.id,email:u.email,plan:u.plan}));
+  window.location.href='index.html';
+}
+</script>
+</body>
+</html>
